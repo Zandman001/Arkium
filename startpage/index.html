@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARKIUM START</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <main class="hero">
+      <div class="noise-bg" aria-hidden="true">
+        <canvas id="noise-canvas"></canvas>
+      </div>
+
+      <!-- Removed logo/punchline blocks for a cleaner start page -->
+  <div class="brand-box" aria-label="Arkium Brand">ARKIUM BROWSER</div>
+
+      <form class="search" id="start-search" autocomplete="off" role="search">
+        <input id="q" type="text" placeholder="SEARCH THE WEB" aria-label="Search" autofocus />
+        <button type="submit" class="go">GO</button>
+      </form>
+
+      <div class="quicklinks" aria-label="Quick links">
+        <a href="https://www.google.com" target="_self" class="ql">GOOGLE</a>
+        <a href="https://www.youtube.com" target="_self" class="ql">YOUTUBE</a>
+        <a href="https://www.github.com" target="_self" class="ql">GITHUB</a>
+        <a href="https://www.reddit.com" target="_self" class="ql">REDDIT</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

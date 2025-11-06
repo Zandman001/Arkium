@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arkium</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="browser-container">
+    <!-- Browser Controls -->
+    <div class="browser-controls">
+      <div class="navigation-buttons">
+        <button id="back-btn" class="nav-btn" title="Go Back">&lt;</button>
+        <button id="forward-btn" class="nav-btn" title="Go Forward">&gt;</button>
+        <button id="reload-btn" class="nav-btn" title="Reload">R</button>
+      </div>
+
+      <div class="address-bar-container">
+        <div class="url-wrapper">
+          <span class="protocol">https://</span>
+          <input type="text" id="address-bar" placeholder="ENTER URL OR SEARCH" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="browser-actions">
+        <button id="add-tab-btn" class="action-btn" title="New Tab" aria-label="Add Tab">+ TAB</button>
+        <button id="home-btn" class="action-btn" title="Home">HOME</button>
+        <button id="gpt-toggle-btn" class="action-btn" title="ChatGPT" aria-label="Toggle ChatGPT Sidebar">GPT</button>
+        <button id="notes-toggle-btn" class="action-btn" title="Notes" aria-label="Toggle Notes Sidebar">NOTES</button>
+        <button id="menu-btn" class="action-btn" title="Menu">MENU</button>
+      </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+  <div id="tabs" class="tabs" role="tablist" aria-label="Arkium Tabs"></div>
+    </div>
+
+    <!-- Browser View (rendered by Electron BrowserView) -->
+    <div id="browser-view-container"></div>
+
+    <!-- ChatGPT Sidebar -->
+    <aside id="chatgpt-sidebar" class="chatgpt-sidebar" aria-label="ChatGPT Sidebar" hidden>
+  <div class="chatgpt-header">CHATGPT<button id="chatgpt-ask-page" class="chatgpt-ask" type="button" title="Ask about this page">ASK PAGE</button></div>
+      <div class="chatgpt-tabs">
+        <div id="chatgpt-tabs" class="chatgpt-tabs-list" role="tablist" aria-label="Chat sessions"></div>
+        <button id="chatgpt-new" class="chatgpt-new" type="button" title="New Chat">+ CHAT</button>
+      </div>
+      <div id="chatgpt-messages" class="chatgpt-messages" role="log" aria-live="polite"></div>
+      <form id="chatgpt-form" class="chatgpt-input" autocomplete="off">
+        <div id="chatgpt-tags" class="chatgpt-tags" aria-live="polite" aria-label="Attached context"></div>
+        <input id="chatgpt-text" type="text" placeholder="ASK ANYTHING" aria-label="Prompt" />
+        <button id="chatgpt-send" type="submit">SEND</button>
+      </form>
+    </aside>
+
+    <!-- Notes Sidebar -->
+    <aside id="notes-sidebar" class="notes-sidebar" aria-label="Notes Sidebar" hidden>
+      <div class="notes-header">NOTES</div>
+      <div class="notes-tabs">
+        <div id="notes-tabs" class="notes-tabs-list" role="tablist" aria-label="Notes"></div>
+        <button id="notes-new" class="notes-new" type="button" title="New Note">+ NOTE</button>
+      </div>
+      <div class="notes-editor">
+        <textarea id="notes-textarea" placeholder="TYPE NOTES" aria-label="Note text"></textarea>
+      </div>
+    </aside>
+
+    <!-- Menu / Settings Panel -->
+    <aside id="menu-panel" class="menu-panel" aria-hidden="true">
+      <div class="menu-tabs" role="tablist" aria-label="Menu">
+        <div class="menu-tabs-left">
+          <button id="menu-tab-settings" class="menu-tab active" role="tab" aria-selected="true" aria-controls="menu-page-settings">SETTINGS</button>
+          <button id="menu-tab-history" class="menu-tab" role="tab" aria-selected="false" aria-controls="menu-page-history">HISTORY</button>
+          <button id="menu-tab-about" class="menu-tab" role="tab" aria-selected="false" aria-controls="menu-page-about">ABOUT</button>
+        </div>
+        <button id="menu-close" class="action-btn small" type="button">CLOSE</button>
+      </div>
+
+      <div class="menu-pages">
+        <section id="menu-page-settings" class="menu-page active" role="tabpanel" aria-labelledby="menu-tab-settings">
+          <div class="menu-section">
+            <label for="openai-key">OPENAI API KEY</label>
+            <input id="openai-key" type="password" placeholder="sk-..." autocomplete="off" />
+            <div class="menu-actions">
+              <button id="show-key" class="action-btn small" type="button" aria-pressed="false">SHOW</button>
+              <button id="save-openai-key" class="action-btn small" type="button">SAVE</button>
+              <button id="test-openai-key" class="action-btn small" type="button">TEST</button>
+            </div>
+            <div id="key-status" class="menu-hint">No key saved.</div>
+          </div>
+          <div class="menu-section">
+            <label for="compact-mode">COMPACT MODE</label>
+            <div class="menu-actions">
+              <input id="compact-mode" type="checkbox" />
+              <span id="compact-mode-state" class="menu-hint">OFF</span>
+              <span class="menu-hint">Tabs move to bottom in a horizontal bar.</span>
+            </div>
+          </div>
+        </section>
+        <section id="menu-page-history" class="menu-page" role="tabpanel" aria-labelledby="menu-tab-history" hidden>
+          <div class="menu-section">
+            <label>BROWSER HISTORY</label>
+            <div class="menu-actions">
+              <button id="clear-history" class="action-btn small" type="button">CLEAR HISTORY</button>
+            </div>
+            <div id="history-empty" class="menu-hint">No history yet.</div>
+            <div id="history-list" class="history-list" role="list"></div>
+          </div>
+        </section>
+        <section id="menu-page-about" class="menu-page" role="tabpanel" aria-labelledby="menu-tab-about" hidden>
+          <div class="menu-section">
+            <label>ABOUT</label>
+            <div class="menu-hint">ARKIUM — a 1-bit brutalist browser. Version 1.0. Keyboard: L focus URL, R reload, H home.</div>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

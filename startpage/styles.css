@@ -1,0 +1,28 @@
+*{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges}
+:root{--fg:#fff;--bg:#000;--b:3px;--bb:6px}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:'Tiny5',monospace;text-transform:uppercase;letter-spacing:1px}
+.page{position:relative;height:100vh;width:100vw}
+
+/* Hero (full page) */
+.hero{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+.noise-bg{position:absolute;inset:0;pointer-events:none}
+#noise-canvas{width:100%;height:100%;display:block;background:transparent}
+
+.brand-box{position:relative;z-index:1;max-width:min(80vw,720px);border:var(--b) solid var(--fg);padding:18px 22px;text-align:center;background:rgba(0,0,0,0.8);font-size:22px;letter-spacing:3px}
+
+.logo-box{position:relative;z-index:1;margin:80px auto 20px;max-width:min(80vw,720px);border:var(--b) solid var(--fg);padding:28px;text-align:center;background:rgba(0,0,0,0.8)}
+.logo{font-size:56px;letter-spacing:4px}
+
+.strap{position:relative;z-index:1;margin:24px auto;max-width:min(80vw,900px);border:var(--b) solid var(--fg);padding:22px;text-align:center;background:rgba(0,0,0,0.8)}
+.strap p{font-size:14px;line-height:1.6}
+
+.search{position:relative;z-index:1;display:flex;justify-content:center;gap:0;margin:32px auto 0;max-width:min(80vw,720px)}
+.search #q{flex:1;min-width:320px;background:rgba(0,0,0,0.8);color:var(--fg);border:var(--b) solid var(--fg);padding:10px 12px;font-family:'Tiny5',monospace;font-size:14px;outline:none}
+.search #q:focus{background:var(--fg);color:var(--bg)}
+.search .go{background:rgba(0,0,0,0.8);color:var(--fg);border:var(--b) solid var(--fg);border-left:none;padding:10px 18px;cursor:pointer;font-family:'Tiny5',monospace;font-size:14px}
+.search .go:hover,.search .go:focus-visible{background:var(--fg);color:var(--bg)}
+
+.quicklinks{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;gap:0;margin-top:-8px}
+.quicklinks .ql{background:rgba(0,0,0,0.8);color:var(--fg);text-decoration:none;border:var(--b) solid var(--fg);padding:8px 12px;margin:6px}
+.quicklinks .ql:hover{background:var(--fg);color:var(--bg)}
