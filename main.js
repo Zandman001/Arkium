@@ -103,6 +103,9 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Register global-ish shortcuts (work across UI and BrowserView)
+  try { registerShortcutsForWC(mainWindow.webContents); } catch {}
 }
 
 // Create browser view for rendering web pages
@@ -157,7 +160,12 @@ function createTab(initialUrl) {
   // Record history when a navigation finishes loading
   wc.on('did-stop-loading', () => {
     try { recordHistory(wc.getURL(), wc.getTitle()); } catch {}
+    // Also analyze colors for adaptive theme
+    try { analyzeAndNotifyPageTheme(id, wc); } catch {}
   });
+
+  // Ensure shortcuts work when the BrowserView has focus
+  try { registerShortcutsForWC(wc); } catch {}
 
   if (!initialUrl || initialUrl === 'start:') {
     wc.loadFile(getStartPagePath());
@@ -173,6 +181,174 @@ function createTab(initialUrl) {
     mainWindow.webContents.send('tab-created', { tabId: id, url: urlForBar, title: '' });
   }
   return id;
+}
+
+function registerShortcutsForWC(wc) {
+  if (!wc) return;
+  wc.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const key = String(input.key || '').toLowerCase();
+    const meta = !!input.meta;
+    const alt = !!input.alt;
+    // Only handle when our window is focused
+    const winFocused = !!BrowserWindow.getFocusedWindow();
+    if (!winFocused) return;
+
+    // SUPER+T (new start page tab)
+    if (meta && !alt && key === 't') {
+      event.preventDefault();
+      createTab('start:');
+      return;
+    }
+    // SUPER+W (close active tab)
+    if (meta && key === 'w') {
+      event.preventDefault();
+      const id = activeTabId;
+      if (id != null) closeTabInternal(id);
+      return;
+    }
+    // SUPER+G (open GPT)
+    if (meta && key === 'g') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'open-gpt' });
+      return;
+    }
+    // SUPER+N (open Notes)
+    if (meta && key === 'n') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'open-notes' });
+      return;
+    }
+    // SUPER+M (open Menu)
+    if (meta && key === 'm') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'open-menu' });
+      return;
+    }
+    // SUPER+ALT+T (next theme preset)
+    if (meta && alt && key === 't') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'next-theme' });
+      return;
+    }
+    // SUPER+L (focus URL)
+    if (meta && key === 'l') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'focus-url' });
+      return;
+    }
+    // SUPER+R (reload)
+    if (meta && key === 'r') {
+      event.preventDefault();
+      const view = activeTabId ? tabs.get(activeTabId) : null;
+      if (view) view.webContents.reload();
+      return;
+    }
+    // SUPER+[ (back)
+    if (meta && key === '[') {
+      event.preventDefault();
+      const view = activeTabId ? tabs.get(activeTabId) : null;
+      if (view && view.webContents.canGoBack()) view.webContents.goBack();
+      return;
+    }
+    // SUPER+] (forward)
+    if (meta && key === ']') {
+      event.preventDefault();
+      const view = activeTabId ? tabs.get(activeTabId) : null;
+      if (view && view.webContents.canGoForward()) view.webContents.goForward();
+      return;
+    }
+    // SUPER+H (home)
+    if (meta && key === 'h') {
+      event.preventDefault();
+      const view = activeTabId ? tabs.get(activeTabId) : null;
+      if (view) view.webContents.loadFile(getStartPagePath());
+      return;
+    }
+    // ESC (close panels)
+    if (key === 'escape') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.webContents.send('shortcut', { action: 'escape' });
+      return;
+    }
+  });
+}
+
+// Analyze the current page for an adaptive theme suggestion and notify renderer
+async function analyzeAndNotifyPageTheme(tabId, wc){
+  if (!wc) return;
+  try {
+    const result = await wc.executeJavaScript(`(() => {
+      function getMetaColor(){
+        const m = document.querySelector('meta[name="theme-color"]');
+        if (!m) return null;
+        const v = (m.getAttribute('content')||'').trim();
+        return v || null;
+      }
+      function getBg(el){
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        const c = cs.backgroundColor || cs.background || '';
+        return c || null;
+      }
+      return {
+        url: location.href,
+        meta: getMetaColor(),
+        bodyBg: getBg(document.body),
+        docBg: getBg(document.documentElement)
+      };
+    })()`, true);
+    const pick = (arr) => arr.find(v => v && typeof v === 'string' && v.trim());
+    const url = result?.url || wc.getURL() || '';
+    let bgHex = '#FFFFFF';
+    let fgHex = '#000000';
+    // Force default B/W for the start page
+    if (/\/startpage\/index\.html/i.test(url)) {
+      bgHex = '#000000';
+      fgHex = '#FFFFFF';
+    } else {
+      const chosen = pick([result?.meta, result?.bodyBg, result?.docBg]) || 'rgb(255,255,255)';
+      const { r, g, b } = parseColorToRgb(chosen);
+      bgHex = rgbToHex(r, g, b);
+      fgHex = pickTextColor(r, g, b);
+    }
+    if (mainWindow) mainWindow.webContents.send('adaptive-theme-suggested', { tabId, bg: bgHex, fg: fgHex, source: 'analyze' });
+  } catch {}
+}
+
+function parseColorToRgb(input){
+  try {
+    if (!input) return { r:255, g:255, b:255 };
+    let s = String(input).trim();
+    if (s.startsWith('#')) {
+      let h = s.slice(1);
+      if (h.length === 3) h = h.split('').map(ch => ch+ch).join('');
+      const r = parseInt(h.slice(0,2),16);
+      const g = parseInt(h.slice(2,4),16);
+      const b = parseInt(h.slice(4,6),16);
+      return { r, g, b };
+    }
+    const m = s.match(/rgba?\(([^)]+)\)/i);
+    if (m) {
+      const parts = m[1].split(',').map(x => x.trim());
+      const r = Math.max(0, Math.min(255, parseInt(parts[0],10)));
+      const g = Math.max(0, Math.min(255, parseInt(parts[1],10)));
+      const b = Math.max(0, Math.min(255, parseInt(parts[2],10)));
+      return { r, g, b };
+    }
+  } catch {}
+  return { r:255, g:255, b:255 };
+}
+
+function rgbToHex(r,g,b){
+  const to = (n)=> n.toString(16).padStart(2,'0');
+  return '#' + to(r) + to(g) + to(b);
+}
+
+function pickTextColor(r,g,b){
+  // Relative luminance approximation; pick #000 over light bg, #fff over dark bg
+  const luminance = (0.2126*(r/255)) + (0.7152*(g/255)) + (0.0722*(b/255));
+  return luminance > 0.6 ? '#000000' : '#FFFFFF';
 }
 
 // IPC handlers for browser actions
@@ -225,31 +401,92 @@ ipcMain.on('switch-tab', (_e, tabId) => {
   if (!view) return;
   activeTabId = tabId;
   switchToView(view);
+  // Suggest theme for new active tab as well
+  try { analyzeAndNotifyPageTheme(tabId, view.webContents); } catch {}
 });
 
 ipcMain.on('close-tab', (_e, tabId) => {
+  closeTabInternal(tabId);
+});
+
+function closeTabInternal(tabId){
   const view = tabs.get(tabId);
   if (!view) return;
-  // If closing the currently displayed view, remove it from window
   try {
     if (currentView === view && mainWindow) {
       mainWindow.removeBrowserView(view);
       currentView = null;
     }
   } catch {}
-  // Destroy and delete
   try { view.webContents.destroy(); } catch {}
   tabs.delete(tabId);
   if (mainWindow) mainWindow.webContents.send('tab-closed', tabId);
-
-  // If closed tab was active, leave switching decision to renderer; ensure active id is valid
   if (activeTabId === tabId) {
     activeTabId = null;
   }
-  // If no tabs remain, create one start tab automatically as a safety net
   if (tabs.size === 0) {
     createTab('start:');
   }
+}
+
+// Focus the start page search input when requested by renderer
+ipcMain.on('focus-startpage-search', () => {
+  try {
+    const view = activeTabId ? tabs.get(activeTabId) : null;
+    if (!view) return;
+    const wc = view.webContents;
+    const url = wc.getURL() || '';
+    if (!/\/startpage\/index\.html/i.test(url)) return;
+    const js = `(() => { try { const el = document.getElementById('q'); if (el) { el.focus(); el.select(); } } catch(_){} })()`;
+    wc.executeJavaScript(js, true).catch(() => {});
+  } catch {}
+});
+
+// On-demand adaptive theme request from renderer
+ipcMain.handle('request-adaptive-theme', async () => {
+  try {
+    const id = activeTabId;
+    const view = id ? tabs.get(id) : null;
+    if (!view) return { ok: false };
+    await analyzeAndNotifyPageTheme(id, view.webContents);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+});
+
+// Apply theme colors to start page (active tab) by setting CSS variables in the page
+ipcMain.on('set-startpage-theme', (_e, payload) => {
+  try {
+    const { fg, bg, font, startBg, fontId } = payload || {};
+    const isHex = (x) => typeof x === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(x);
+    if (!isHex(fg) || !isHex(bg)) return;
+    const view = activeTabId ? tabs.get(activeTabId) : null;
+    if (!view) return;
+    const wc = view.webContents;
+    const url = wc.getURL() || '';
+    if (!/\/startpage\/index\.html/i.test(url)) return;
+    let js = `document.documentElement.style.setProperty('--fg','${fg}'); document.documentElement.style.setProperty('--bg','${bg}');`;
+    if (font && typeof font === 'string') {
+      // Escape single quotes for safe injection
+      const safeFont = font.replace(/'/g, "\\'");
+      js += ` document.documentElement.style.setProperty('--font','${safeFont}');`;
+    }
+    // Optional start page background mode
+    if (typeof startBg === 'string') {
+      const allowed = ['noise','none'];
+      if (allowed.includes(startBg)) {
+        js += ` document.documentElement.style.setProperty('--start-bg-mode','${startBg}');`;
+        // Nudge the page to apply immediately if helper exists
+        js += ` if (window.__applyStartBgMode) { try { window.__applyStartBgMode('${startBg}'); } catch(e){} }`;
+      }
+    }
+    if (typeof fontId === 'string') {
+      const safeId = fontId.replace(/[^a-z0-9\-_.]/gi, '');
+      js += ` document.documentElement.setAttribute('data-font-id','${safeId}');`;
+    }
+    wc.executeJavaScript(js, true).catch(() => {});
+  } catch {}
 });
 
 // App lifecycle

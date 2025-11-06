@@ -46,6 +46,33 @@ class SimplexNoise {
 }
 
 (function(){
+  function getVar(name){
+    const cs = getComputedStyle(document.documentElement);
+    return (cs.getPropertyValue(name) || '').trim();
+  }
+  function hexToRGBA(hex, a){
+    const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex||'');
+    if (!m) return `rgba(0,0,0,${a})`;
+    let h = m[1];
+    if (h.length === 3) h = h.split('').map(ch => ch+ch).join('');
+    const r = parseInt(h.slice(0,2),16);
+    const g = parseInt(h.slice(2,4),16);
+    const b = parseInt(h.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  let settingBgA = false;
+  function applyDerivedTheme(){
+    const bg = getVar('--bg') || '#000000';
+    const bgA = hexToRGBA(bg, 0.8);
+    // Only set if changed to avoid unnecessary attribute mutations
+    const current = document.documentElement.style.getPropertyValue('--bgA');
+    if (current && current.trim() === bgA) return;
+    settingBgA = true;
+    document.documentElement.style.setProperty('--bgA', bgA);
+    // Yield microtask to allow observer to run, then clear flag
+    Promise.resolve().then(() => { settingBgA = false; });
+  }
+
   // Search form behavior
   const form = document.getElementById('start-search');
   const input = document.getElementById('q');
@@ -61,7 +88,7 @@ class SimplexNoise {
     });
   }
 
-  // Noise grid canvas animation (1-bit look)
+  // Noise grid canvas animation (1-bit look) and static patterns
   const canvas = document.getElementById('noise-canvas');
   const container = document.querySelector('.hero');
   if (!canvas || !container) return;
@@ -85,11 +112,14 @@ class SimplexNoise {
   window.addEventListener('resize', resize);
 
   let raf;
+  let animating = false;
   function animate(){
+    animating = true;
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const time = Date.now() * timeScale;
-    // Draw only pure white squares for a 1-bit effect
-    ctx.fillStyle = '#ffffff';
+    // Use theme foreground color for pixels (1-bit effect)
+    const fg = getVar('--fg') || '#ffffff';
+    ctx.fillStyle = fg;
     for (let i=0;i<cols;i++){
       for (let j=0;j<rows;j++){
         const x = i * gap;
@@ -106,7 +136,113 @@ class SimplexNoise {
     }
     raf = requestAnimationFrame(animate);
   }
-  animate();
+
+  function stopAnimation(){
+    animating = false;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+  }
+
+  function drawDither(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const fg = getVar('--fg') || '#ffffff';
+    ctx.fillStyle = fg;
+    const step = Math.max(2, Math.floor(gap/2));
+    for (let y=0; y<canvas.height; y+=step){
+      for (let x=0; x<canvas.width; x+=step){
+        // checkerboard style dither
+        if (((x/step) + (y/step)) % 2 === 0) {
+          ctx.fillRect(x, y, step, step);
+        }
+      }
+    }
+  }
+
+  function drawGrid(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const fg = getVar('--fg') || '#ffffff';
+    ctx.fillStyle = fg;
+    const step = gap * 2;
+    // vertical lines
+    for (let x=0; x<canvas.width; x+=step){
+      ctx.fillRect(x, 0, 1, canvas.height);
+    }
+    // horizontal lines
+    for (let y=0; y<canvas.height; y+=step){
+      ctx.fillRect(0, y, canvas.width, 1);
+    }
+  }
+
+  function drawStripes(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const fg = getVar('--fg') || '#ffffff';
+    ctx.fillStyle = fg;
+    const step = gap * 2;
+    for (let x=0; x<canvas.width; x+=step){
+      ctx.fillRect(x, 0, Math.max(2, Math.floor(step/3)), canvas.height);
+    }
+  }
+
+  let currentMode = null;
+  function applyMode(mode){
+    if (!mode) mode = 'noise';
+    if (mode === currentMode) return;
+    currentMode = mode;
+    if (mode === 'noise') {
+      canvas.style.display = '';
+      // restart animation
+      stopAnimation();
+      animate();
+    } else if (mode === 'none') {
+      stopAnimation();
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      canvas.style.display = 'none';
+    } else {
+      canvas.style.display = '';
+      stopAnimation();
+      if (mode === 'dither') drawDither();
+      else if (mode === 'grid') drawGrid();
+      else if (mode === 'stripes') drawStripes();
+    }
+  }
+
+  function getStartBgMode(){
+    const m = (getVar('--start-bg-mode') || '').toLowerCase();
+    if (['noise','none','dither','grid','stripes'].includes(m)) return m;
+    return 'noise';
+  }
+
+  // Expose helper for main process injection
+  window.__applyStartBgMode = function(mode){
+    applyMode(mode);
+  };
+  applyDerivedTheme();
+  // Watch for inline style changes on :root to recompute --bgA and react to bg mode
+  const mo = new MutationObserver(() => {
+    if (!settingBgA) {
+      applyDerivedTheme();
+      const nextMode = getStartBgMode();
+      if (nextMode !== currentMode) applyMode(nextMode);
+    }
+  });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+
+  // Initialize background mode from CSS var (ensure first call triggers animate if needed)
+  applyMode(getStartBgMode());
+
+  // Focus the search input automatically when the start page loads
+  function focusSearchInputRetry(left){
+    try {
+      const el = document.getElementById('q');
+      if (el && typeof el.focus === 'function') {
+        el.focus();
+        if (typeof el.select === 'function') el.select();
+        return;
+      }
+    } catch {}
+    if ((left|0) > 0) setTimeout(() => focusSearchInputRetry((left|0) - 1), 50);
+  }
+  // try a few times in case fonts/layout reflow
+  focusSearchInputRetry(10);
 
   // Cleanup
   window.addEventListener('beforeunload', ()=>{ if (raf) cancelAnimationFrame(raf); });

@@ -42,6 +42,29 @@ const testKeyBtn = document.getElementById('test-openai-key');
 const keyStatus = document.getElementById('key-status');
 const compactToggle = document.getElementById('compact-mode');
 const compactState = document.getElementById('compact-mode-state');
+// Adaptive theme controls
+const adaptiveToggle = document.getElementById('adaptive-theme');
+const adaptiveState = document.getElementById('adaptive-theme-state');
+const adaptiveFadeToggle = document.getElementById('adaptive-fade');
+const adaptiveFadeState = document.getElementById('adaptive-fade-state');
+// Theme color controls
+const colorFgInput = document.getElementById('color-fg');
+const colorBgInput = document.getElementById('color-bg');
+const applyColorsBtn = document.getElementById('apply-colors');
+const resetColorsBtn = document.getElementById('reset-colors');
+// Font controls
+const fontSelect = document.getElementById('font-select');
+const applyFontBtn = document.getElementById('apply-font');
+// Start page background controls (ON/OFF)
+const startBgToggle = document.getElementById('start-bg-toggle');
+const startBgState = document.getElementById('start-bg-state');
+const applyStartBgBtn = document.getElementById('apply-start-bg');
+// Preset controls
+const presetSelect = document.getElementById('preset-select');
+const applyPresetBtn = document.getElementById('apply-preset');
+const savePresetBtn = document.getElementById('save-preset');
+const deletePresetBtn = document.getElementById('delete-preset');
+const presetNameInput = document.getElementById('preset-name');
 // History elements
 const historyList = document.getElementById('history-list');
 const historyEmpty = document.getElementById('history-empty');
@@ -50,6 +73,7 @@ const clearHistoryBtn = document.getElementById('clear-history');
 // Tab state in renderer
 let tabs = []; // [{id, title, url}]
 let activeTabId = null;
+let shouldCloseWindowIfNoTabs = false; // when true, closing last tab will close the window instead of reopening start page
 
 // Navigation functions
 function stripScheme(u){
@@ -179,9 +203,6 @@ function closeTab(id) {
   if (activeTabId === id) {
     if (nextId != null) {
       selectTab(nextId);
-    } else {
-      // no tabs left -> create a fresh start page
-      addTab('start:');
     }
   } else {
     renderTabs();
@@ -245,6 +266,19 @@ window.addEventListener('resize', () => {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Arkium initialized');
+  // Restore font selection
+  try {
+    const fid = loadSavedFontId();
+    applyFontById(fid);
+    if (fontSelect) fontSelect.value = fid;
+  } catch {}
+  // Restore start page background toggle
+  try {
+    const bg = loadSavedStartBg();
+    const on = bg !== 'none';
+    if (startBgToggle) startBgToggle.checked = on;
+    if (startBgState) startBgState.textContent = on ? 'ON' : 'OFF';
+  } catch {}
   // Restore compact mode preference
   try {
     const savedCompact = localStorage.getItem('atb_compact_mode');
@@ -252,6 +286,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (enabled) document.body.classList.add('compact-mode');
     if (compactToggle) compactToggle.checked = enabled;
     if (compactState) compactState.textContent = enabled ? 'ON' : 'OFF';
+  } catch {}
+  // Restore adaptive theme preference
+  try {
+    const saved = localStorage.getItem('atb_adaptive_theme');
+    const on = saved === '1' || saved === 'true';
+    if (adaptiveToggle) adaptiveToggle.checked = on;
+    if (adaptiveState) adaptiveState.textContent = on ? 'ON' : 'OFF';
+    // If enabled, request immediate analysis for the current (soon-to-be) active tab after it loads
+    if (on) setTimeout(() => { try { ipcRenderer.invoke('request-adaptive-theme'); } catch {} }, 500);
+  } catch {}
+  // Restore adaptive fade preference (default ON)
+  try {
+    const saved = localStorage.getItem('atb_adaptive_fade');
+    const on = saved == null || saved === '1' || saved === 'true';
+    if (adaptiveFadeToggle) adaptiveFadeToggle.checked = on;
+    if (adaptiveFadeState) adaptiveFadeState.textContent = on ? 'ON' : 'OFF';
+    updateAdaptiveFadeClass();
+  } catch {}
+  // Restore theme colors
+  try {
+    const raw = localStorage.getItem('atb_theme_colors');
+    const parsed = raw ? JSON.parse(raw) : null;
+    const fg = parsed?.fg && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(parsed.fg) ? parsed.fg : '#ffffff';
+    const bg = parsed?.bg && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(parsed.bg) ? parsed.bg : '#000000';
+    document.documentElement.style.setProperty('--fg', fg);
+    document.documentElement.style.setProperty('--bg', bg);
+    if (colorFgInput) colorFgInput.value = fg.toUpperCase();
+    if (colorBgInput) colorBgInput.value = bg.toUpperCase();
   } catch {}
   reportChromeMetrics();
   // Initialize key status
@@ -294,55 +356,481 @@ compactToggle?.addEventListener('change', (e) => {
   reportChromeMetrics();
 });
 
+// Adaptive theme toggle
+adaptiveToggle?.addEventListener('change', () => {
+  const on = !!adaptiveToggle.checked;
+  try { localStorage.setItem('atb_adaptive_theme', on ? '1' : '0'); } catch {}
+  if (adaptiveState) adaptiveState.textContent = on ? 'ON' : 'OFF';
+  updateAdaptiveFadeClass();
+  if (on) {
+    // Request analysis and apply when response arrives
+    try { ipcRenderer.invoke('request-adaptive-theme'); } catch {}
+  } else {
+    // Revert to saved manual theme
+    try {
+      const raw = localStorage.getItem('atb_theme_colors');
+      const parsed = raw ? JSON.parse(raw) : null;
+      const fg = parsed?.fg || '#ffffff';
+      const bg = parsed?.bg || '#000000';
+      applyThemeColors(fg, bg);
+    } catch {}
+  }
+});
+
+// Adaptive fade toggle
+adaptiveFadeToggle?.addEventListener('change', () => {
+  const on = !!adaptiveFadeToggle.checked;
+  try { localStorage.setItem('atb_adaptive_fade', on ? '1' : '0'); } catch {}
+  if (adaptiveFadeState) adaptiveFadeState.textContent = on ? 'ON' : 'OFF';
+  updateAdaptiveFadeClass();
+});
+
+function updateAdaptiveFadeClass(){
+  try {
+    const ad = localStorage.getItem('atb_adaptive_theme');
+    const adaptiveOn = ad === '1' || ad === 'true';
+    const fadeSaved = localStorage.getItem('atb_adaptive_fade');
+    const fadeOn = fadeSaved == null || fadeSaved === '1' || fadeSaved === 'true';
+    const shouldDisable = adaptiveOn && !fadeOn;
+    document.body.classList.toggle('no-adaptive-fade', shouldDisable);
+  } catch {}
+}
+
+function applyThemeColors(fg, bg){
+  document.documentElement.style.setProperty('--fg', fg);
+  document.documentElement.style.setProperty('--bg', bg);
+}
+// ===== Global font selection =====
+const FONT_STACKS = {
+  'tiny5': "'Tiny5', monospace",
+  'inter': "'Inter', sans-serif",
+  'ibm-plex-mono': "'IBM Plex Mono', monospace",
+  'jetbrains-mono': "'JetBrains Mono', monospace",
+  'press-start-2p': "'Press Start 2P', cursive",
+  'space-mono': "'Space Mono', monospace",
+};
+
+function applyFontById(id){
+  const stack = FONT_STACKS[id] || FONT_STACKS['tiny5'];
+  document.documentElement.style.setProperty('--font', stack);
+}
+
+function loadSavedFontId(){
+  try { return localStorage.getItem('atb_font') || 'tiny5'; } catch { return 'tiny5'; }
+}
+function saveFontId(id){
+  try { localStorage.setItem('atb_font', id); } catch {}
+}
+
+// Start page background helpers
+function loadSavedStartBg(){
+  try { return localStorage.getItem('atb_start_bg') || 'noise'; } catch { return 'noise'; }
+}
+function saveStartBg(mode){
+  try { localStorage.setItem('atb_start_bg', mode); } catch {}
+}
+
+
+function validHex(x){ return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(x || ''); }
+
+function syncPresetSelectionToCurrentColors(){
+  if (!presetSelect) return;
+  try {
+    const fg = (colorFgInput?.value || '').toUpperCase();
+    const bg = (colorBgInput?.value || '').toUpperCase();
+    const m = matchPresetByColors(fg, bg);
+    if (m) {
+      if (m.source === 'builtin') presetSelect.value = `builtin:${m.id}`;
+      else if (m.source === 'saved') presetSelect.value = `saved:${m.name}`;
+    } else {
+      presetSelect.value = '';
+    }
+    updateDeletePresetState();
+  } catch {}
+}
+
+applyColorsBtn?.addEventListener('click', () => {
+  const fg = (colorFgInput?.value || '').trim();
+  const bg = (colorBgInput?.value || '').trim();
+  if (!validHex(fg) || !validHex(bg)) {
+    alert('Enter valid HEX colors like #000000 and #FFFFFF');
+    return;
+  }
+  applyThemeColors(fg, bg);
+  try { localStorage.setItem('atb_theme_colors', JSON.stringify({ fg, bg })); } catch {}
+  // If the active tab is the start page, apply into it immediately
+  try {
+    const t = tabs.find(tt => tt.id === activeTabId);
+    if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+  const fid = loadSavedFontId();
+  const font = FONT_STACKS[fid] || FONT_STACKS['tiny5'];
+  const startBg = loadSavedStartBg();
+      let sendFg = fg, sendBg = bg;
+      try {
+        const ad = localStorage.getItem('atb_adaptive_theme');
+        const adaptiveOn = ad === '1' || ad === 'true';
+        if (adaptiveOn) { sendFg = '#ffffff'; sendBg = '#000000'; }
+      } catch {}
+      ipcRenderer.send('set-startpage-theme', { fg: sendFg, bg: sendBg, font, startBg, fontId: fid });
+    }
+  } catch {}
+  // reflect selection if it matches a preset
+  syncPresetSelectionToCurrentColors();
+});
+
+resetColorsBtn?.addEventListener('click', () => {
+  const fg = '#ffffff';
+  const bg = '#000000';
+  applyThemeColors(fg, bg);
+  if (colorFgInput) colorFgInput.value = fg;
+  if (colorBgInput) colorBgInput.value = bg;
+  try { localStorage.setItem('atb_theme_colors', JSON.stringify({ fg, bg })); } catch {}
+  try {
+    const t = tabs.find(tt => tt.id === activeTabId);
+    if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+      // also include current font stack
+  const fid = loadSavedFontId();
+  const font = FONT_STACKS[fid] || FONT_STACKS['tiny5'];
+  const startBg = loadSavedStartBg();
+      let sendFg = fg, sendBg = bg;
+      try {
+        const ad = localStorage.getItem('atb_adaptive_theme');
+        const adaptiveOn = ad === '1' || ad === 'true';
+        if (adaptiveOn) { sendFg = '#ffffff'; sendBg = '#000000'; }
+      } catch {}
+      ipcRenderer.send('set-startpage-theme', { fg: sendFg, bg: sendBg, font, startBg, fontId: fid });
+    }
+  } catch {}
+  syncPresetSelectionToCurrentColors();
+});
+
+// Apply font button
+applyFontBtn?.addEventListener('click', () => {
+  const id = (fontSelect?.value || 'tiny5');
+  applyFontById(id);
+  saveFontId(id);
+  // If start page active, inject font var too
+  try {
+    const t = tabs.find(tt => tt.id === activeTabId);
+    if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+      // keep existing theme colors
+      const raw = localStorage.getItem('atb_theme_colors');
+      const parsed = raw ? JSON.parse(raw) : null;
+      let fg = parsed?.fg || '#ffffff';
+      let bg = parsed?.bg || '#000000';
+  const font = FONT_STACKS[id] || FONT_STACKS['tiny5'];
+  const startBg = loadSavedStartBg();
+      try {
+        const ad = localStorage.getItem('atb_adaptive_theme');
+        const adaptiveOn = ad === '1' || ad === 'true';
+        if (adaptiveOn) { fg = '#ffffff'; bg = '#000000'; }
+      } catch {}
+      ipcRenderer.send('set-startpage-theme', { fg, bg, font, startBg, fontId: id });
+    }
+  } catch {}
+});
+
+// ===== Color Presets (built-in + user saved) =====
+const BUILTIN_PRESETS = [
+  { id: 'classic', name: 'Classic (White on Black)', fg: '#FFFFFF', bg: '#000000' },
+  { id: 'inverted', name: 'Inverted (Black on White)', fg: '#000000', bg: '#FFFFFF' },
+  { id: 'green-phosphor', name: 'Green Phosphor', fg: '#39FF14', bg: '#000000' },
+  { id: 'amber', name: 'Amber', fg: '#FFBF00', bg: '#000000' },
+  { id: 'navy-ice', name: 'Navy + Ice', fg: '#CDE6FF', bg: '#001833' },
+  { id: 'mint-chocolate', name: 'Mint + Chocolate', fg: '#C8FFD4', bg: '#2B1B12' },
+  { id: 'violet-noir', name: 'Violet Noir', fg: '#EDE3FF', bg: '#140027' },
+  // Extras
+  { id: 'teal-on-black', name: 'Teal on Black', fg: '#00FFD0', bg: '#000000' },
+  { id: 'cyanotype', name: 'Cyanotype', fg: '#BFE8FF', bg: '#001B2E' },
+  { id: 'solarized-dark', name: 'Solarized Dark (2-col)', fg: '#EEE8D5', bg: '#002B36' },
+  { id: 'solarized-light', name: 'Solarized Light (2-col)', fg: '#073642', bg: '#FDF6E3' },
+  { id: 'gameboy', name: 'Game Boy', fg: '#0F380F', bg: '#E0F8D0' },
+  { id: 'hot-pink-noir', name: 'Hot Pink Noir', fg: '#FF66CC', bg: '#000000' },
+  { id: 'terminal-green', name: 'Terminal Green', fg: '#00FF00', bg: '#000000' },
+  { id: 'nord-dark', name: 'Nord Dark (2-col)', fg: '#D8DEE9', bg: '#2E3440' },
+  { id: 'gruvbox-dark', name: 'Gruvbox Dark (2-col)', fg: '#EBDBB2', bg: '#282828' },
+  { id: 'gruvbox-light', name: 'Gruvbox Light (2-col)', fg: '#3C3836', bg: '#FBF1C7' },
+  { id: 'fire', name: 'Fire', fg: '#FFD166', bg: '#1B0B0B' },
+  { id: 'forest', name: 'Forest', fg: '#D2FFCB', bg: '#081C0C' },
+  { id: 'royal', name: 'Royal', fg: '#EAD9FF', bg: '#1B1464' },
+  { id: 'ocean-midnight', name: 'Ocean Midnight', fg: '#9AEDFF', bg: '#001219' },
+  { id: 'blue-screen', name: 'Blue Screen', fg: '#FFFFFF', bg: '#0000AA' },
+  { id: 'hi-contrast-yellow', name: 'High Contrast Yellow', fg: '#FFFF00', bg: '#000000' },
+  { id: 'magenta-noir', name: 'Magenta Noir', fg: '#FF00FF', bg: '#000000' },
+  { id: 'aqua-noir', name: 'Aqua Noir', fg: '#00FFFF', bg: '#000000' },
+  { id: 'paper-ink', name: 'Paper Ink', fg: '#111111', bg: '#FAFAFA' },
+  // Catppuccin (2-col variants)
+  { id: 'catppuccin-mocha', name: 'Catppuccin Mocha (2-col)', fg: '#CDD6F4', bg: '#1E1E2E' },
+  { id: 'catppuccin-macchiato', name: 'Catppuccin Macchiato (2-col)', fg: '#CAD3F5', bg: '#24273A' },
+  { id: 'catppuccin-frappe', name: 'Catppuccin Frappé (2-col)', fg: '#C6D0F5', bg: '#303446' },
+  { id: 'catppuccin-latte', name: 'Catppuccin Latte (2-col)', fg: '#4C4F69', bg: '#EFF1F5' },
+];
+
+const PRESETS_KEY = 'atb_color_presets';
+function loadSavedPresets(){
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(arr)) {
+      // sanitize
+      return arr.filter(p => p && typeof p.name === 'string' && validHex(p.fg) && validHex(p.bg));
+    }
+  } catch {}
+  return [];
+}
+function saveSavedPresets(list){
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(list || [])); } catch {}
+}
+
+function populatePresetSelect(){
+  if (!presetSelect) return;
+  presetSelect.innerHTML = '';
+
+  // Placeholder option
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '— Select a preset —';
+  presetSelect.appendChild(placeholder);
+
+  const ogBuilt = document.createElement('optgroup');
+  ogBuilt.label = 'Built-in';
+  BUILTIN_PRESETS.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `builtin:${p.id}`;
+    opt.textContent = p.name;
+    opt.dataset.source = 'builtin';
+    opt.dataset.fg = p.fg.toUpperCase();
+    opt.dataset.bg = p.bg.toUpperCase();
+    ogBuilt.appendChild(opt);
+  });
+  presetSelect.appendChild(ogBuilt);
+
+  const saved = loadSavedPresets();
+  const ogSaved = document.createElement('optgroup');
+  ogSaved.label = 'Saved';
+  saved.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `saved:${p.name}`;
+    opt.textContent = p.name;
+    opt.dataset.source = 'saved';
+    opt.dataset.fg = p.fg.toUpperCase();
+    opt.dataset.bg = p.bg.toUpperCase();
+    ogSaved.appendChild(opt);
+  });
+  if (saved.length) presetSelect.appendChild(ogSaved);
+
+  updateDeletePresetState();
+}
+
+function updateDeletePresetState(){
+  if (!deletePresetBtn || !presetSelect) return;
+  const val = presetSelect.value || '';
+  const isSaved = val.startsWith('saved:');
+  deletePresetBtn.disabled = !isSaved;
+}
+
+function matchPresetByColors(fg, bg){
+  const F = (fg || '').toUpperCase();
+  const B = (bg || '').toUpperCase();
+  // built-ins
+  for (const p of BUILTIN_PRESETS) {
+    if (p.fg.toUpperCase() === F && p.bg.toUpperCase() === B) return { source: 'builtin', id: p.id };
+  }
+  // saved
+  for (const p of loadSavedPresets()) {
+    if (p.fg.toUpperCase() === F && p.bg.toUpperCase() === B) return { source: 'saved', name: p.name };
+  }
+  return null;
+}
+
+// Initialize presets UI once DOM and color inputs are ready
+document.addEventListener('DOMContentLoaded', () => {
+  populatePresetSelect();
+  try {
+    const fg = (colorFgInput?.value || '').toUpperCase();
+    const bg = (colorBgInput?.value || '').toUpperCase();
+    const m = matchPresetByColors(fg, bg);
+    if (m && presetSelect) {
+      if (m.source === 'builtin') presetSelect.value = `builtin:${m.id}`;
+      else if (m.source === 'saved') presetSelect.value = `saved:${m.name}`;
+      updateDeletePresetState();
+    }
+  } catch {}
+});
+
+presetSelect?.addEventListener('change', () => {
+  updateDeletePresetState();
+  const opt = presetSelect.options[presetSelect.selectedIndex];
+  const fg = opt?.dataset?.fg;
+  const bg = opt?.dataset?.bg;
+  if (validHex(fg) && validHex(bg)) {
+    if (colorFgInput) colorFgInput.value = fg.toUpperCase();
+    if (colorBgInput) colorBgInput.value = bg.toUpperCase();
+  }
+});
+
+applyPresetBtn?.addEventListener('click', () => {
+  if (!presetSelect) return;
+  const opt = presetSelect.options[presetSelect.selectedIndex];
+  const fg = (opt?.dataset?.fg || '').toUpperCase();
+  const bg = (opt?.dataset?.bg || '').toUpperCase();
+  if (!validHex(fg) || !validHex(bg)) {
+    alert('Select a preset first.');
+    return;
+  }
+  if (colorFgInput) colorFgInput.value = fg;
+  if (colorBgInput) colorBgInput.value = bg;
+  applyThemeColors(fg, bg);
+  try { localStorage.setItem('atb_theme_colors', JSON.stringify({ fg, bg })); } catch {}
+  try {
+    const t = tabs.find(tt => tt.id === activeTabId);
+    if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+      const startBg = loadSavedStartBg();
+      const fid = loadSavedFontId();
+      let sendFg = fg, sendBg = bg;
+      try {
+        const ad = localStorage.getItem('atb_adaptive_theme');
+        const adaptiveOn = ad === '1' || ad === 'true';
+        if (adaptiveOn) { sendFg = '#ffffff'; sendBg = '#000000'; }
+      } catch {}
+      ipcRenderer.send('set-startpage-theme', { fg: sendFg, bg: sendBg, startBg, fontId: fid });
+    }
+  } catch {}
+});
+
+savePresetBtn?.addEventListener('click', () => {
+  const name = (presetNameInput?.value || '').trim();
+  const fg = (colorFgInput?.value || '').trim().toUpperCase();
+  const bg = (colorBgInput?.value || '').trim().toUpperCase();
+  if (!name) { alert('Enter a preset name.'); return; }
+  if (!validHex(fg) || !validHex(bg)) { alert('Enter valid HEX colors.'); return; }
+  const list = loadSavedPresets();
+  const idx = list.findIndex(p => (p.name || '').toLowerCase() === name.toLowerCase());
+  const entry = { name, fg, bg };
+  if (idx >= 0) list[idx] = entry; else list.push(entry);
+  saveSavedPresets(list);
+  populatePresetSelect();
+  if (presetSelect) presetSelect.value = `saved:${name}`;
+  updateDeletePresetState();
+});
+
+deletePresetBtn?.addEventListener('click', () => {
+  if (!presetSelect) return;
+  const val = presetSelect.value || '';
+  if (!val.startsWith('saved:')) return;
+  const name = val.slice(6);
+  const ok = window.confirm(`Delete preset "${name}"?`);
+  if (!ok) return;
+  const list = loadSavedPresets();
+  const next = list.filter(p => (p.name || '') !== name);
+  saveSavedPresets(next);
+  populatePresetSelect();
+  presetSelect.value = '';
+  updateDeletePresetState();
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-  // Cmd/Ctrl + L - Focus address bar
-  if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+  // SUPER = metaKey (Command on macOS, Windows key on Windows/Linux)
+
+  // SUPER+ALT+T - Next theme preset (built-in list)
+  if (e.metaKey && e.altKey && e.key.toLowerCase() === 't') {
+    e.preventDefault();
+    try {
+      // Determine current colors
+      const fgNow = (colorFgInput?.value || getComputedStyle(document.documentElement).getPropertyValue('--fg') || '').trim().toUpperCase();
+      const bgNow = (colorBgInput?.value || getComputedStyle(document.documentElement).getPropertyValue('--bg') || '').trim().toUpperCase();
+      // Find match in built-ins, then advance
+      let idx = BUILTIN_PRESETS.findIndex(p => p.fg.toUpperCase() === fgNow && p.bg.toUpperCase() === bgNow);
+      idx = (idx + 1 + (idx < 0 ? 0 : 0)) % BUILTIN_PRESETS.length; // if not found, idx becomes 0
+      if (idx < 0) idx = 0;
+      const next = BUILTIN_PRESETS[idx];
+      const fg = next.fg.toUpperCase();
+      const bg = next.bg.toUpperCase();
+      if (colorFgInput) colorFgInput.value = fg;
+      if (colorBgInput) colorBgInput.value = bg;
+      applyThemeColors(fg, bg);
+      try { localStorage.setItem('atb_theme_colors', JSON.stringify({ fg, bg })); } catch {}
+      try {
+        const t = tabs.find(tt => tt.id === activeTabId);
+        if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+          const startBg = loadSavedStartBg();
+          const fid = loadSavedFontId();
+          let sendFg = fg, sendBg = bg;
+          try {
+            const ad = localStorage.getItem('atb_adaptive_theme');
+            const adaptiveOn = ad === '1' || ad === 'true';
+            if (adaptiveOn) { sendFg = '#ffffff'; sendBg = '#000000'; }
+          } catch {}
+          ipcRenderer.send('set-startpage-theme', { fg: sendFg, bg: sendBg, startBg, fontId: fid });
+        }
+      } catch {}
+      // reflect preset selection if applicable
+      syncPresetSelectionToCurrentColors();
+    } catch {}
+    return;
+  }
+
+  // SUPER + L - Focus address bar
+  if (e.metaKey && e.key === 'l') {
     e.preventDefault();
     addressBar.focus();
     addressBar.select();
   }
   
-  // Cmd/Ctrl + R - Reload
-  if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
+  // SUPER + R - Reload
+  if (e.metaKey && e.key === 'r') {
     e.preventDefault();
     reload();
   }
   
-  // Cmd/Ctrl + [ - Go back
-  if ((e.metaKey || e.ctrlKey) && e.key === '[') {
+  // SUPER + [ - Go back
+  if (e.metaKey && e.key === '[') {
     e.preventDefault();
     goBack();
   }
   
-  // Cmd/Ctrl + ] - Go forward
-  if ((e.metaKey || e.ctrlKey) && e.key === ']') {
+  // SUPER + ] - Go forward
+  if (e.metaKey && e.key === ']') {
     e.preventDefault();
     goForward();
   }
   
-  // Cmd/Ctrl + H - Go home
-  if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
+  // SUPER + H - Go home
+  if (e.metaKey && e.key === 'h') {
     e.preventDefault();
     goHome();
   }
 
-  // Cmd/Ctrl + T - New tab
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 't') {
+  // SUPER + T - New start page tab (no Alt)
+  if (e.metaKey && !e.altKey && e.key.toLowerCase() === 't') {
     e.preventDefault();
-    addTab('https://www.google.com');
+    addTab('start:');
   }
 
-  // Cmd/Ctrl + G - Toggle GPT sidebar
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g') {
+  // SUPER + W - Close current tab; if last, close window
+  if (e.metaKey && e.key.toLowerCase() === 'w') {
     e.preventDefault();
-    toggleGpt();
+    shouldCloseWindowIfNoTabs = true;
+    if (activeTabId != null) closeTab(activeTabId);
   }
 
-  // Cmd/Ctrl + N - Toggle Notes sidebar
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+  // SUPER + G - Open GPT sidebar
+  if (e.metaKey && e.key.toLowerCase() === 'g') {
     e.preventDefault();
-    toggleNotes();
+    toggleGpt(true);
+  }
+
+  // SUPER + N - Open Notes sidebar
+  if (e.metaKey && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    toggleNotes(true);
+  }
+
+  // SUPER + M - Open Menu panel
+  if (e.metaKey && e.key.toLowerCase() === 'm') {
+    e.preventDefault();
+    toggleMenu(true);
   }
 
   // Esc - close menu or GPT or Notes if open
@@ -356,6 +844,57 @@ document.addEventListener('keydown', (e) => {
 });
 
 // IPC listeners from main
+ipcRenderer.on('shortcut', (_e, payload) => {
+  const action = payload?.action;
+  switch (action) {
+    case 'open-gpt':
+      toggleGpt(true);
+      break;
+    case 'open-notes':
+      toggleNotes(true);
+      break;
+    case 'open-menu':
+      toggleMenu(true);
+      break;
+    case 'focus-url':
+      try { addressBar.focus(); addressBar.select(); } catch {}
+      break;
+    case 'next-theme':
+      try {
+        const fgNow = (colorFgInput?.value || getComputedStyle(document.documentElement).getPropertyValue('--fg') || '').trim().toUpperCase();
+        const bgNow = (colorBgInput?.value || getComputedStyle(document.documentElement).getPropertyValue('--bg') || '').trim().toUpperCase();
+        let idx = BUILTIN_PRESETS.findIndex(p => p.fg.toUpperCase() === fgNow && p.bg.toUpperCase() === bgNow);
+        idx = (idx + 1 + (idx < 0 ? 0 : 0)) % BUILTIN_PRESETS.length;
+        if (idx < 0) idx = 0;
+        const next = BUILTIN_PRESETS[idx];
+        const fg = next.fg.toUpperCase();
+        const bg = next.bg.toUpperCase();
+        if (colorFgInput) colorFgInput.value = fg;
+        if (colorBgInput) colorBgInput.value = bg;
+        applyThemeColors(fg, bg);
+        try { localStorage.setItem('atb_theme_colors', JSON.stringify({ fg, bg })); } catch {}
+        try {
+          const t = tabs.find(tt => tt.id === activeTabId);
+          if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+            const startBg = loadSavedStartBg();
+            const fid = loadSavedFontId();
+            const font = FONT_STACKS[fid] || FONT_STACKS['tiny5'];
+            ipcRenderer.send('set-startpage-theme', { fg, bg, startBg, font, fontId: fid });
+          }
+        } catch {}
+        syncPresetSelectionToCurrentColors();
+      } catch {}
+      break;
+    case 'escape':
+      // Close any open panels (Menu > GPT > Notes order)
+      if (menuPanel && menuPanel.classList.contains('open')) { toggleMenu(false); break; }
+      if (gptSidebar && gptSidebar.classList.contains('open')) { toggleGpt(false); break; }
+      if (notesSidebar && notesSidebar.classList.contains('open')) { toggleNotes(false); break; }
+      break;
+    default:
+      break;
+  }
+});
 ipcRenderer.on('tab-created', (_e, payload) => {
   const { tabId, url, title } = payload;
   tabs.push({ id: tabId, url, title });
@@ -373,8 +912,74 @@ ipcRenderer.on('tab-updated', (_e, payload) => {
   }
   if (tabId === activeTabId && url) {
     setAddressBarDisplay(url);
+  // If the active tab is the start page, apply current theme colors
+    if (/\/startpage\/index\.html/i.test(url)) {
+      try {
+        const raw = localStorage.getItem('atb_theme_colors');
+        const parsed = raw ? JSON.parse(raw) : null;
+        let fg = parsed?.fg || '#ffffff';
+        let bg = parsed?.bg || '#000000';
+        if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(fg) && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(bg)) {
+          const fid = loadSavedFontId();
+          const font = FONT_STACKS[fid] || FONT_STACKS['tiny5'];
+          const startBg = loadSavedStartBg();
+          try {
+            const ad = localStorage.getItem('atb_adaptive_theme');
+            const adaptiveOn = ad === '1' || ad === 'true';
+            if (adaptiveOn) { fg = '#ffffff'; bg = '#000000'; }
+          } catch {}
+          ipcRenderer.send('set-startpage-theme', { fg, bg, font, startBg, fontId: fid });
+          try { ipcRenderer.send('focus-startpage-search'); } catch {}
+        }
+      } catch {}
+    }
+    // If adaptive theme is on, request analysis (main will also auto-send on load)
+    try {
+      const saved = localStorage.getItem('atb_adaptive_theme');
+      const on = saved === '1' || saved === 'true';
+      if (on) ipcRenderer.invoke('request-adaptive-theme');
+    } catch {}
   }
   renderTabs();
+});
+// Receive adaptive theme suggestions and apply if enabled and for active tab
+ipcRenderer.on('adaptive-theme-suggested', (_e, payload) => {
+  try {
+    const { tabId, bg, fg } = payload || {};
+    const saved = localStorage.getItem('atb_adaptive_theme');
+    const on = saved === '1' || saved === 'true';
+    if (!on) return;
+    if (tabId !== activeTabId) return;
+    if (validHex(fg) && validHex(bg)) {
+      applyThemeColors(fg, bg);
+      // Do not persist or change color inputs; this is ephemeral for adaptive mode
+    }
+  } catch {}
+});
+
+// Apply Start Page Background button (toggle ON/OFF)
+applyStartBgBtn?.addEventListener('click', () => {
+  const on = !!startBgToggle?.checked;
+  const mode = on ? 'noise' : 'none';
+  saveStartBg(mode);
+  if (startBgState) startBgState.textContent = on ? 'ON' : 'OFF';
+  try {
+    const t = tabs.find(tt => tt.id === activeTabId);
+    if (t && t.url && /\/startpage\/index\.html/i.test(t.url)) {
+      const raw = localStorage.getItem('atb_theme_colors');
+      const parsed = raw ? JSON.parse(raw) : null;
+      let fg = parsed?.fg || '#ffffff';
+      let bg = parsed?.bg || '#000000';
+      const fid = loadSavedFontId();
+      const font = FONT_STACKS[fid] || FONT_STACKS['tiny5'];
+      try {
+        const ad = localStorage.getItem('atb_adaptive_theme');
+        const adaptiveOn = ad === '1' || ad === 'true';
+        if (adaptiveOn) { fg = '#ffffff'; bg = '#000000'; }
+      } catch {}
+      ipcRenderer.send('set-startpage-theme', { fg, bg, font, startBg: mode, fontId: fid });
+    }
+  } catch {}
 });
 
 ipcRenderer.on('tab-closed', (_e, tabId) => {
@@ -385,7 +990,9 @@ ipcRenderer.on('tab-closed', (_e, tabId) => {
     if (fallback != null) {
       selectTab(fallback);
     } else {
-      addTab('start:');
+      // No tabs remaining: always close the window
+      shouldCloseWindowIfNoTabs = false;
+      try { window.close(); } catch {}
     }
   } else {
     renderTabs();

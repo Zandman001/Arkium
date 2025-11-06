@@ -7,6 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap" rel="stylesheet">
+  <!-- Additional Google Fonts for selectable themes -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -100,6 +106,63 @@
               <span id="compact-mode-state" class="menu-hint">OFF</span>
               <span class="menu-hint">Tabs move to bottom in a horizontal bar.</span>
             </div>
+          </div>
+          <div class="menu-section">
+            <label for="adaptive-theme">ADAPTIVE THEME</label>
+            <div class="menu-actions">
+              <input id="adaptive-theme" type="checkbox" />
+              <span id="adaptive-theme-state" class="menu-hint">OFF</span>
+            </div>
+            <div class="menu-hint">Automatically match Arkium's two colors to the active page. Smooth transitions on navigation.</div>
+            <div class="menu-actions" style="margin-top:6px; gap:8px; align-items:center;">
+              <label for="adaptive-fade">SMOOTH COLOUR FADE</label>
+              <input id="adaptive-fade" type="checkbox" />
+              <span id="adaptive-fade-state" class="menu-hint">ON</span>
+            </div>
+          </div>
+          <div class="menu-section">
+            <label>PIXEL BACKGROUND</label>
+            <div class="menu-actions" style="align-items:center; gap:8px;">
+              <input id="start-bg-toggle" type="checkbox" aria-label="Pixel background on/off" />
+              <span id="start-bg-state" class="menu-hint">OFF</span>
+              <button id="apply-start-bg" class="action-btn small" type="button">APPLY</button>
+            </div>
+            <div class="menu-hint">Toggle the animated pixel background on the start page.</div>
+          </div>
+          <div class="menu-section">
+            <label>THEME COLORS</label>
+            <div class="menu-actions">
+              <input id="color-fg" type="text" placeholder="#FFFFFF" aria-label="Foreground color" />
+              <input id="color-bg" type="text" placeholder="#000000" aria-label="Background color" />
+              <button id="apply-colors" class="action-btn small" type="button">APPLY</button>
+              <button id="reset-colors" class="action-btn small" type="button">RESET</button>
+            </div>
+            <div class="menu-hint">Enter HEX like #000000 and #FFFFFF. Applies instantly across the UI.</div>
+            <div class="menu-actions" style="margin-top:6px; gap:8px; align-items:center;">
+              <label for="preset-select">PRESETS</label>
+              <select id="preset-select" aria-label="Color Presets"></select>
+              <button id="apply-preset" class="action-btn small" type="button">APPLY PRESET</button>
+            </div>
+            <div class="menu-actions" style="margin-top:6px; gap:8px; align-items:center;">
+              <input id="preset-name" type="text" placeholder="Preset name" aria-label="Preset name" />
+              <button id="save-preset" class="action-btn small" type="button">SAVE PRESET</button>
+              <button id="delete-preset" class="action-btn small" type="button">DELETE PRESET</button>
+            </div>
+          </div>
+          <div class="menu-section">
+            <label for="font-select">FONT</label>
+            <div class="menu-actions">
+              <select id="font-select" aria-label="Font Family">
+                <option value="tiny5">Tiny5 (pixel)</option>
+                <option value="inter">Inter</option>
+                <option value="ibm-plex-mono">IBM Plex Mono</option>
+                <option value="jetbrains-mono">JetBrains Mono</option>
+                <option value="press-start-2p">Press Start 2P (retro)</option>
+                <option value="space-mono">Space Mono</option>
+              </select>
+              <button id="apply-font" class="action-btn small" type="button">APPLY FONT</button>
+            </div>
+            <div class="menu-hint">Applies globally. Uppercase styling is preserved.</div>
           </div>
         </section>
         <section id="menu-page-history" class="menu-page" role="tabpanel" aria-labelledby="menu-tab-history" hidden>

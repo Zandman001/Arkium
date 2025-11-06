@@ -15,23 +15,29 @@ button, input, select, textarea {
   text-shadow: none !important;
   border-radius: 0 !important; /* kill any rounded halos */
   filter: none !important;     /* kill UA inner shadows */
-  /* Ensure form controls use Tiny5 and uppercase like the rest of the UI */
-  font-family: 'Tiny5', monospace !important;
+  /* Ensure form controls use selected font and uppercase like the rest of the UI */
+  font-family: var(--font, 'Tiny5', monospace) !important;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 
 body {
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   overflow: hidden;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--bg);
+  color: var(--fg);
   text-transform: uppercase;
   letter-spacing: 1px;
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
-:root { --right-chrome: 0px; }
+/* Disable transitions globally when adaptive fade is off */
+.no-adaptive-fade, .no-adaptive-fade * {
+  transition: none !important;
+}
+
+:root { --right-chrome: 0px; --left-chrome: 160px; --bottom-chrome: 0px; --bg: #000000; --fg: #ffffff; --font: 'Tiny5', monospace; }
 
 .browser-container {
   position: relative;
@@ -47,9 +53,10 @@ body {
   align-items: stretch;
   gap: 0;
   padding: 0;
-  background: #000000;
+  background: var(--bg);
   height: 36px; /* even smaller toolbar */
   z-index: 10;
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 /* Tab Bar - vertical */
@@ -60,9 +67,10 @@ body {
   left: 0;
   width: 160px;
   display: flex;
-  background: #000000;
+  background: var(--bg);
   z-index: 9;
   overflow: hidden; /* prevent bottom horizontal scrollbar track */
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 .tabs {
@@ -75,8 +83,8 @@ body {
 }
 
 .tab {
-  background: #000000;
-  color: #ffffff;
+  background: var(--bg);
+  color: var(--fg);
   border: none !important;     /* remove UA border entirely */
   border-bottom: none;         /* keep explicit no divider */
   padding: 0 0;
@@ -86,7 +94,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between; /* title left, close right */
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
@@ -96,15 +104,13 @@ body {
   text-shadow: none;
   -webkit-appearance: none;
   appearance: none;
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
-.tab:hover { background: #ffffff; color: #000000; }
-.tab:focus-visible { outline: 3px solid #ffffff; outline-offset: -3px; }
+.tab:hover { background: var(--fg); color: var(--bg); }
+.tab:focus-visible { outline: 3px solid var(--fg); outline-offset: -3px; }
 
-.tab.active {
-  background: #ffffff; /* selected tab is white */
-  color: #000000;
-}
+.tab.active { background: var(--fg); color: var(--bg); }
 
 .tab-title {
   padding: 0 12px;
@@ -120,27 +126,27 @@ body {
   border: none; /* ensure no border */
   height: 100%;
   padding: 0 10px;
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px;
   cursor: pointer;
   box-shadow: none; text-shadow: none; outline: none; -webkit-appearance: none; appearance: none;
 }
-  .tab:hover .tab-close { color: #000000; }
-  .tab.active .tab-close { color: #000000; }
+  .tab:hover .tab-close { color: var(--bg); }
+  .tab.active .tab-close { color: var(--bg); }
 /* Ensure the X is white on black when hovered */
-  .tab-close:hover, .tab-close:focus-visible { background: #000000; color: #ffffff; }
+  .tab-close:hover, .tab-close:focus-visible { background: var(--bg); color: var(--fg); }
   .tab:hover .tab-close:hover,
   .tab:hover .tab-close:focus-visible,
   .tab.active .tab-close:hover,
-  .tab.active .tab-close:focus-visible { background: #000000; color: #ffffff; }
-.tab-close:hover, .tab-close:focus-visible { background: #000000; color: #ffffff; }
+  .tab.active .tab-close:focus-visible { background: var(--bg); color: var(--fg); }
+.tab-close:hover, .tab-close:focus-visible { background: var(--bg); color: var(--fg); }
 
 /* + TAB now lives in toolbar */
 
 .add-tab-btn:hover,
 .add-tab-btn:focus-visible {
-  background: #ffffff;
-  color: #000000;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 .navigation-buttons {
@@ -150,16 +156,16 @@ body {
 }
 
 .nav-btn, .action-btn {
-  background: #000000;
+  background: var(--bg);
   border: none;
-  color: #ffffff;
+  color: var(--fg);
   cursor: pointer;
   padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: none;
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px; /* smaller text to match compact toolbar */
   text-transform: uppercase;
   /* height/min-width are set in toolbar scope to avoid breaking menu layout */
@@ -169,6 +175,7 @@ body {
   outline: none;
   -webkit-appearance: none;
   appearance: none;
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 /* Constrain toolbar button sizing without affecting menu buttons */
@@ -179,13 +186,13 @@ body {
 }
 
 .nav-btn:hover, .action-btn:hover {
-  background: #ffffff;
-  color: #000000;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 .nav-btn:active, .action-btn:active {
-  background: #ffffff;
-  color: #000000;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 /* selected/focused elements turn white */
@@ -193,9 +200,9 @@ body {
 .action-btn:focus-visible,
 .nav-btn[aria-selected="true"],
 .action-btn[aria-selected="true"] {
-  background: #ffffff;
-  color: #000000;
-  outline: 3px solid #ffffff;
+  background: var(--fg);
+  color: var(--bg);
+  outline: 3px solid var(--fg);
   outline-offset: -3px; /* keep the brutalist block look */
 }
 
@@ -205,8 +212,8 @@ body {
 }
 
 .nav-btn:disabled:hover {
-  background: #000000;
-  color: #ffffff;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 /* Address Bar */
@@ -220,7 +227,7 @@ body {
 .url-wrapper {
   display: flex;
   align-items: center;
-  background: #000000;
+  background: var(--bg);
   border: none;
   padding: 0 12px;
   height: 100%;
@@ -228,8 +235,8 @@ body {
 }
 
 .protocol {
-  color: #ffffff;
-  font-family: 'Tiny5', monospace;
+  color: var(--fg);
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px;
   margin-right: 4px;
   white-space: nowrap;
@@ -239,9 +246,9 @@ body {
   flex: 1;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--fg);
   font-size: 12px;
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   padding: 0;
   outline: none;
   text-transform: uppercase;
@@ -254,8 +261,8 @@ body {
 }
 
 #address-bar:focus {
-  background: #ffffff;
-  color: #000000;
+  background: var(--fg);
+  color: var(--bg);
   padding: 0 6px;
   margin: 0 -6px;
 }
@@ -282,8 +289,9 @@ body {
   left: var(--left-chrome, 160px); /* to the right of vertical tabs */
   right: var(--right-chrome, 0px);
   bottom: var(--bottom-chrome, 0px);
-  background: #000000;
-  border: 3px solid #ffffff; /* visible frame around browsing window */
+  background: var(--bg);
+  border: 3px solid var(--fg); /* visible frame around browsing window */
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 /* ChatGPT Sidebar */
@@ -295,40 +303,41 @@ body {
   width: 360px;
   display: none;
   flex-direction: column;
-  background: #000000;
-  color: #ffffff;
-  border-left: 3px solid #ffffff;
+  background: var(--bg);
+  color: var(--fg);
+  border-left: 3px solid var(--fg);
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 .chatgpt-sidebar.open { display: flex; }
-.chatgpt-header { height: 32px; display: flex; align-items: center; padding: 0 12px; border-bottom: 3px solid #ffffff; }
-.chatgpt-header .chatgpt-ask { margin-left: auto; background: #000; color: #fff; padding: 0 10px; font-family: 'Tiny5', monospace; font-size: 12px; cursor: pointer; box-shadow: none; border: none; }
-.chatgpt-header .chatgpt-ask.active { background: #000000; color: #ffffff; outline: 3px solid #ffffff; outline-offset: -3px; }
-.chatgpt-header .chatgpt-ask:hover { background: #fff; color: #000; }
-.chatgpt-tabs { height: 32px; display: flex; align-items: stretch; border-bottom: 3px solid #ffffff; }
+.chatgpt-header { height: 32px; display: flex; align-items: center; padding: 0 12px; border-bottom: 3px solid var(--fg); }
+.chatgpt-header .chatgpt-ask { margin-left: auto; background: var(--bg); color: var(--fg); padding: 0 10px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; cursor: pointer; box-shadow: none; border: none; }
+.chatgpt-header .chatgpt-ask.active { background: var(--bg); color: var(--fg); outline: 3px solid var(--fg); outline-offset: -3px; }
+.chatgpt-header .chatgpt-ask:hover { background: var(--fg); color: var(--bg); }
+.chatgpt-tabs { height: 32px; display: flex; align-items: stretch; border-bottom: 3px solid var(--fg); }
 .chatgpt-tabs-list { flex: 1; display: flex; overflow-x: auto; }
-.chatgpt-tab { background: #000; color: #fff; padding: 0 10px; display: flex; align-items: center; height: 100%; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none !important; filter: none !important; border: none !important; border-radius: 0; }
-.chatgpt-tab.active { background: #fff; color: #000; }
-.chatgpt-tab:hover { background: #fff; color: #000; }
+.chatgpt-tab { background: var(--bg); color: var(--fg); padding: 0 10px; display: flex; align-items: center; height: 100%; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none !important; filter: none !important; border: none !important; border-radius: 0; }
+.chatgpt-tab.active { background: var(--fg); color: var(--bg); }
+.chatgpt-tab:hover { background: var(--fg); color: var(--bg); }
 .chatgpt-tab-title { white-space: nowrap; }
-.chatgpt-tab-close { background: transparent; color: inherit; border: none; padding: 0 6px; height: 100%; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none; }
+.chatgpt-tab-close { background: transparent; color: inherit; border: none; padding: 0 6px; height: 100%; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none; }
 /* Close button hover: white X on black */
-.chatgpt-tab-close:hover, .chatgpt-tab-close:focus-visible { background: #000000; color: #ffffff; }
-.chatgpt-new { background: #000; color: #fff; padding: 0 10px; font-family: 'Tiny5', monospace; font-size: 12px; cursor: pointer; border: none; box-shadow: none; }
-.chatgpt-new:hover { background: #fff; color: #000; }
+.chatgpt-tab-close:hover, .chatgpt-tab-close:focus-visible { background: var(--bg); color: var(--fg); }
+.chatgpt-new { background: var(--bg); color: var(--fg); padding: 0 10px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; cursor: pointer; border: none; box-shadow: none; }
+.chatgpt-new:hover { background: var(--fg); color: var(--bg); }
 .chatgpt-messages { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-.chatgpt-msg { border: 3px solid #ffffff; padding: 8px 10px; background: rgba(0,0,0,0.85); }
-.chatgpt-msg.user { background: #000000; }
-.chatgpt-input { display: flex; border-top: 3px solid #ffffff; }
-.chatgpt-input input { flex: 1; background: #000; color: #fff; border: none; padding: 12px 12px; font-family: 'Tiny5', monospace; font-size: 12px; outline: none; }
-.chatgpt-input button { background: #000; color: #fff; border: none; border-left: 3px solid #fff; padding: 0 12px; font-family: 'Tiny5', monospace; font-size: 12px; cursor: pointer; box-shadow: none !important; filter: none !important; border-radius: 0; }
+.chatgpt-msg { border: 3px solid var(--fg); padding: 8px 10px; background: rgba(0,0,0,0.85); }
+.chatgpt-msg.user { background: var(--bg); }
+.chatgpt-input { display: flex; border-top: 3px solid var(--fg); }
+.chatgpt-input input { flex: 1; background: var(--bg); color: var(--fg); border: none; padding: 12px 12px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; outline: none; }
+.chatgpt-input button { background: var(--bg); color: var(--fg); border: none; border-left: 3px solid var(--fg); padding: 0 12px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; cursor: pointer; box-shadow: none !important; filter: none !important; border-radius: 0; }
 
 /* ChatGPT input tags (ASK PAGE) */
 .chatgpt-tags { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
-.chatgpt-tag { display: flex; align-items: center; height: 100%; background: #ffffff; color: #000000; border: none; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none; }
+.chatgpt-tag { display: flex; align-items: center; height: 100%; background: var(--fg); color: var(--bg); border: none; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none; }
 .chatgpt-tag-label { padding: 0 8px; white-space: nowrap; }
-.chatgpt-tag-close { background: transparent; color: #000000; border: none; height: 100%; padding: 0 8px; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none; }
-.chatgpt-tag-close:hover, .chatgpt-tag-close:focus-visible { background: #000000; color: #ffffff; }
+.chatgpt-tag-close { background: transparent; color: var(--bg); border: none; height: 100%; padding: 0 8px; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none; }
+.chatgpt-tag-close:hover, .chatgpt-tag-close:focus-visible { background: var(--bg); color: var(--fg); }
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
@@ -337,13 +346,13 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
-  border: 2px solid #ffffff;
+  background: var(--bg);
+  border: 2px solid var(--fg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ffffff;
-  border: 2px solid #000000;
+  background: var(--fg);
+  border: 2px solid var(--bg);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -351,13 +360,13 @@ body {
 }
 
 ::-webkit-scrollbar-corner {
-  background: #000000;
+  background: var(--bg);
 }
 
 /* Selection */
 ::selection {
-  background: #ffffff;
-  color: #000000;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 /* Menu / Settings Panel */
@@ -369,22 +378,23 @@ body {
   bottom: 0;
   display: none;
   flex-direction: column;
-  background: #000000; /* solid to prevent underlying bleed-through */
-  color: #ffffff;
-  border-left: 3px solid #ffffff; /* left border since it opens from right */
+  background: var(--bg); /* solid to prevent underlying bleed-through */
+  color: var(--fg);
+  border-left: 3px solid var(--fg); /* left border since it opens from right */
   padding: 12px;
   gap: 12px;
   z-index: 12; /* ensure above tabbar and frame, and above GPT sidebar */
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 .menu-panel.open { display: flex; }
 
 /* Menu tabs */
-.menu-tabs { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #ffffff; padding-bottom: 6px; }
+.menu-tabs { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--fg); padding-bottom: 6px; }
 .menu-tabs-left { display: flex; gap: 6px; }
-.menu-tab { background: #000000; color: #ffffff; border: none; padding: 4px 8px; font-family: 'Tiny5', monospace; font-size: 12px; cursor: pointer; }
-.menu-tab:hover, .menu-tab:focus-visible { background: #ffffff; color: #000000; }
-.menu-tab.active { background: #ffffff; color: #000000; }
+.menu-tab { background: var(--bg); color: var(--fg); border: none; padding: 4px 8px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; cursor: pointer; }
+.menu-tab:hover, .menu-tab:focus-visible { background: var(--fg); color: var(--bg); }
+.menu-tab.active { background: var(--fg); color: var(--bg); }
 
 .menu-pages { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; position: relative; }
 .menu-page { display: none; }
@@ -399,15 +409,15 @@ body {
 
 .menu-section label {
   font-size: 12px;
-  color: #ffffff;
+  color: var(--fg);
 }
 
 #openai-key {
-  background: #000000;
-  color: #ffffff;
-  border: 3px solid #ffffff;
+  background: var(--bg);
+  color: var(--fg);
+  border: 3px solid var(--fg);
   padding: 10px 12px; /* more vertical breathing room */
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px;
   outline: none;
 }
@@ -421,56 +431,44 @@ body {
 
 /* Global select styling (ensure not squished like text inputs) */
 select {
-  background: #000000;
-  color: #ffffff;
-  border: 3px solid #ffffff;
+  background: var(--bg);
+  color: var(--fg);
+  border: 3px solid var(--fg);
   padding: 10px 28px 10px 12px; /* extra right space for arrow */
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font, 'Tiny5', monospace);
   font-size: 12px;
   outline: none;
+  transition: background-color 240ms linear, color 240ms linear, border-color 240ms linear;
 }
 
 /* Simple custom arrow for select (1-bit) */
 select::-ms-expand { display: none; }
 select {
-  background-image: linear-gradient(45deg, #ffffff 50%, rgba(0,0,0,0) 50%),
-                    linear-gradient(135deg, #ffffff 50%, rgba(0,0,0,0) 50%);
+  background-image: linear-gradient(45deg, var(--fg) 50%, rgba(0,0,0,0) 50%),
+                    linear-gradient(135deg, var(--fg) 50%, rgba(0,0,0,0) 50%);
   background-position: calc(100% - 14px) 55%, calc(100% - 8px) 55%;
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
 }
 
 /* 1-bit checkbox styling (visible ON/OFF box) */
-input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  border: 3px solid #ffffff;
-  background: #000000;
-  display: inline-block;
-  vertical-align: middle;
-  cursor: pointer;
-}
-input[type="checkbox"]:checked {
-  background: #ffffff;
-}
-input[type="checkbox"]:focus-visible {
-  outline: 3px solid #ffffff;
-  outline-offset: -3px;
-}
+input[type="checkbox"] { width: 18px; height: 18px; border: 3px solid var(--fg); background: var(--bg); display: inline-block; vertical-align: middle; cursor: pointer; }
+input[type="checkbox"]:checked { background: var(--fg); }
+input[type="checkbox"]:focus-visible { outline: 3px solid var(--fg); outline-offset: -3px; }
 
 /* Increase vertical padding on header ask button for better border spacing */
 .chatgpt-header .chatgpt-ask { padding: 4px 10px; }
 
 .menu-hint {
   font-size: 11px;
-  color: #ffffff;
+  color: var(--fg);
   opacity: 0.9;
 }
 
 /* History list styling */
 .history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; }
-.history-item { position: relative; display: flex; flex-direction: column; gap: 2px; background: #000000; color: #ffffff; border: 3px solid #ffffff; padding: 6px 48px 6px 8px; cursor: pointer; width: 100%; height: 54px; justify-content: center; }
-.history-item:hover, .history-item:focus-visible { background: #ffffff; color: #000000; }
+.history-item { position: relative; display: flex; flex-direction: column; gap: 2px; background: var(--bg); color: var(--fg); border: 3px solid var(--fg); padding: 6px 48px 6px 8px; cursor: pointer; width: 100%; height: 54px; justify-content: center; }
+.history-item:hover, .history-item:focus-visible { background: var(--fg); color: var(--bg); }
 .history-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 14px; }
 .history-url { font-size: 10px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 14px; }
 .history-time { font-size: 10px; opacity: 0.9; white-space: nowrap; line-height: 14px; }
@@ -479,9 +477,9 @@ input[type="checkbox"]:focus-visible {
 .menu-pages { overflow: hidden; }
 
 /* History remove button and layout stretch */
-.history-remove { position: absolute; top: 0; right: 0; height: 100%; width: 40px; background: transparent; color: inherit; border: none; border-left: 3px solid currentColor; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; }
-.history-item:hover .history-remove, .history-item:focus-visible .history-remove { background: transparent; color: #000000; }
-.history-remove:hover, .history-remove:focus-visible { background: currentColor; color: #ffffff; }
+.history-remove { position: absolute; top: 0; right: 0; height: 100%; width: 40px; background: transparent; color: inherit; border: none; border-left: 3px solid currentColor; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; }
+.history-item:hover .history-remove, .history-item:focus-visible .history-remove { background: transparent; color: var(--bg); }
+.history-remove:hover, .history-remove:focus-visible { background: currentColor; color: var(--fg); }
 
 .menu-page.active .menu-section { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
 
@@ -494,24 +492,24 @@ input[type="checkbox"]:focus-visible {
   width: 360px;
   display: none;
   flex-direction: column;
-  background: #000000;
-  color: #ffffff;
-  border-left: 3px solid #ffffff;
+  background: var(--bg);
+  color: var(--fg);
+  border-left: 3px solid var(--fg);
 }
 .notes-sidebar.open { display: flex; }
-.notes-header { height: 32px; display: flex; align-items: center; padding: 0 12px; border-bottom: 3px solid #ffffff; }
-.notes-tabs { height: 32px; display: flex; align-items: stretch; border-bottom: 3px solid #ffffff; }
+.notes-header { height: 32px; display: flex; align-items: center; padding: 0 12px; border-bottom: 3px solid var(--fg); }
+.notes-tabs { height: 32px; display: flex; align-items: stretch; border-bottom: 3px solid var(--fg); }
 .notes-tabs-list { flex: 1; display: flex; overflow-x: auto; }
-.notes-tab { background: #000; color: #fff; padding: 0 10px; display: flex; align-items: center; height: 100%; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none !important; filter: none !important; border: none !important; border-radius: 0; }
-.notes-tab.active { background: #fff; color: #000; }
-.notes-tab:hover { background: #fff; color: #000; }
+.notes-tab { background: var(--bg); color: var(--fg); padding: 0 10px; display: flex; align-items: center; height: 100%; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none !important; filter: none !important; border: none !important; border-radius: 0; }
+.notes-tab.active { background: var(--fg); color: var(--bg); }
+.notes-tab:hover { background: var(--fg); color: var(--bg); }
 .notes-tab-title { white-space: nowrap; }
-.notes-tab-close { background: transparent; color: inherit; border: none; padding: 0 6px; height: 100%; cursor: pointer; font-family: 'Tiny5', monospace; font-size: 12px; box-shadow: none; }
-.notes-tab-close:hover, .notes-tab-close:focus-visible { background: #000000; color: #ffffff; }
-.notes-new { background: #000; color: #fff; padding: 0 10px; font-family: 'Tiny5', monospace; font-size: 12px; cursor: pointer; border: none; box-shadow: none; }
-.notes-new:hover { background: #fff; color: #000; }
+.notes-tab-close { background: transparent; color: inherit; border: none; padding: 0 6px; height: 100%; cursor: pointer; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; box-shadow: none; }
+.notes-tab-close:hover, .notes-tab-close:focus-visible { background: var(--bg); color: var(--fg); }
+.notes-new { background: var(--bg); color: var(--fg); padding: 0 10px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; cursor: pointer; border: none; box-shadow: none; }
+.notes-new:hover { background: var(--fg); color: var(--bg); }
 .notes-editor { flex: 1; display: flex; }
-.notes-editor textarea { flex: 1; background: #000; color: #fff; border: none; border-top: 3px solid #ffffff; padding: 12px; font-family: 'Tiny5', monospace; font-size: 12px; outline: none; resize: none; }
+.notes-editor textarea { flex: 1; background: var(--bg); color: var(--fg); border: none; border-top: 3px solid var(--fg); padding: 12px; font-family: var(--font, 'Tiny5', monospace); font-size: 12px; outline: none; resize: none; }
 
 /* Compact mode: bottom horizontal tabs */
 .compact-mode .tab-bar {
@@ -521,7 +519,7 @@ input[type="checkbox"]:focus-visible {
   bottom: 0;
   width: auto;
   height: 36px;
-  border-top: 3px solid #ffffff;
+  border-top: 3px solid var(--fg);
 }
 .compact-mode .tabs {
   flex-direction: row;
