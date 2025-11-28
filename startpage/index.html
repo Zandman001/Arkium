@@ -31,10 +31,17 @@
       </form>
 
       <div class="quicklinks" aria-label="Quick links">
-        <a href="https://www.google.com" target="_self" class="ql">GOOGLE</a>
-        <a href="https://www.youtube.com" target="_self" class="ql">YOUTUBE</a>
-        <a href="https://www.github.com" target="_self" class="ql">GITHUB</a>
-        <a href="https://www.reddit.com" target="_self" class="ql">REDDIT</a>
+        <!-- Dynamic links will be injected here -->
+        <div id="links-list" class="links-list"></div>
+        <div class="links-editor" id="links-editor" hidden>
+          <div class="links-editor-row">
+            <input id="new-link-name" type="text" placeholder="NAME" aria-label="Link name" />
+            <input id="new-link-url" type="text" placeholder="URL" aria-label="Link URL" />
+            <button id="add-link-btn" type="button" class="links-btn">ADD</button>
+          </div>
+          <div class="links-hint">EDIT MODE: CLICK A NAME/URL TO CHANGE. X REMOVES. LINKS SAVE LOCALLY.</div>
+        </div>
+        <button id="links-edit-toggle" type="button" class="links-toggle">EDIT LINKS</button>
       </div>
     </main>
   </div>

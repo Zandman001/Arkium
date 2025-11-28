@@ -1,6 +1,8 @@
 const { app, BrowserWindow, BrowserView, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+let keytar = null;
+try { keytar = require('keytar'); } catch {}
 
 let mainWindow;
 let currentView;
@@ -104,6 +106,16 @@ function createWindow() {
     mainWindow = null;
   });
 
+  // When the window regains focus, ensure the active webview is focused too
+  try {
+    mainWindow.on('focus', () => {
+      try {
+        const view = activeTabId ? tabs.get(activeTabId) : null;
+        if (view) view.webContents.focus();
+      } catch {}
+    });
+  } catch {}
+
   // Register global-ish shortcuts (work across UI and BrowserView)
   try { registerShortcutsForWC(mainWindow.webContents); } catch {}
 }
@@ -129,6 +141,7 @@ function switchToView(view) {
   currentView = view;
   mainWindow.addBrowserView(currentView);
   setViewBounds(currentView);
+  try { currentView.webContents.focus(); } catch {}
 }
 
 function getStartPagePath() {
@@ -138,7 +151,11 @@ function getStartPagePath() {
 function createTab(initialUrl) {
   const id = nextTabId++;
   const view = new BrowserView({
-    webPreferences: { nodeIntegration: false, contextIsolation: true }
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(app.getAppPath(), 'preload_tab.js')
+    }
   });
   tabs.set(id, view);
 
@@ -442,6 +459,14 @@ ipcMain.on('focus-startpage-search', () => {
   } catch {}
 });
 
+// Force focus to the active BrowserView on demand
+ipcMain.on('focus-webview', () => {
+  try {
+    const view = activeTabId ? tabs.get(activeTabId) : null;
+    if (view) view.webContents.focus();
+  } catch {}
+});
+
 // On-demand adaptive theme request from renderer
 ipcMain.handle('request-adaptive-theme', async () => {
   try {
@@ -691,6 +716,47 @@ ipcMain.handle('test-openai-key', async (_e, maybeKey) => {
       }
     });
     return { ok: res.ok, status: res.status };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+// ===== Credentials (password manager) using OS keychain via keytar =====
+function sanitizeHost(host) {
+  try { return String(host || '').toLowerCase().replace(/[^a-z0-9.\-]/g, ''); } catch { return ''; }
+}
+function serviceForHost(host){
+  const h = sanitizeHost(host);
+  return `Arkium:${h || 'unknown'}`;
+}
+
+ipcMain.handle('cred-get', async (_e, payload) => {
+  try {
+    const host = sanitizeHost(payload?.host || '');
+    if (!keytar || !host) return { ok: false };
+    const service = serviceForHost(host);
+    // findCredentials returns [{ account, password }]
+    const list = await keytar.findCredentials(service);
+    if (Array.isArray(list) && list.length) {
+      // pick the first for now
+      const { account, password } = list[0];
+      return { ok: true, username: account || '', password: password || '' };
+    }
+    return { ok: true, username: '', password: '' };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('cred-save', async (_e, payload) => {
+  try {
+    const host = sanitizeHost(payload?.host || '');
+    const username = String(payload?.username || '');
+    const password = String(payload?.password || '');
+    if (!keytar || !host || !username || !password) return { ok: false };
+    const service = serviceForHost(host);
+    await keytar.setPassword(service, username, password);
+    return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e) };
   }

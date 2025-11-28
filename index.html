@@ -51,6 +51,7 @@
 
     <!-- ChatGPT Sidebar -->
     <aside id="chatgpt-sidebar" class="chatgpt-sidebar" aria-label="ChatGPT Sidebar" hidden>
+      <div class="sidebar-resizer" data-sidebar="gpt" aria-hidden="true"></div>
   <div class="chatgpt-header">CHATGPT<button id="chatgpt-ask-page" class="chatgpt-ask" type="button" title="Ask about this page">ASK PAGE</button></div>
       <div class="chatgpt-tabs">
         <div id="chatgpt-tabs" class="chatgpt-tabs-list" role="tablist" aria-label="Chat sessions"></div>
@@ -66,6 +67,7 @@
 
     <!-- Notes Sidebar -->
     <aside id="notes-sidebar" class="notes-sidebar" aria-label="Notes Sidebar" hidden>
+      <div class="sidebar-resizer" data-sidebar="notes" aria-hidden="true"></div>
       <div class="notes-header">NOTES</div>
       <div class="notes-tabs">
         <div id="notes-tabs" class="notes-tabs-list" role="tablist" aria-label="Notes"></div>
@@ -78,6 +80,7 @@
 
     <!-- Menu / Settings Panel -->
     <aside id="menu-panel" class="menu-panel" aria-hidden="true">
+      <div class="sidebar-resizer" data-sidebar="menu" aria-hidden="true"></div>
       <div class="menu-tabs" role="tablist" aria-label="Menu">
         <div class="menu-tabs-left">
           <button id="menu-tab-settings" class="menu-tab active" role="tab" aria-selected="true" aria-controls="menu-page-settings">SETTINGS</button>
@@ -98,14 +101,6 @@
               <button id="test-openai-key" class="action-btn small" type="button">TEST</button>
             </div>
             <div id="key-status" class="menu-hint">No key saved.</div>
-          </div>
-          <div class="menu-section">
-            <label for="compact-mode">COMPACT MODE</label>
-            <div class="menu-actions">
-              <input id="compact-mode" type="checkbox" />
-              <span id="compact-mode-state" class="menu-hint">OFF</span>
-              <span class="menu-hint">Tabs move to bottom in a horizontal bar.</span>
-            </div>
           </div>
           <div class="menu-section">
             <label for="adaptive-theme">ADAPTIVE THEME</label>

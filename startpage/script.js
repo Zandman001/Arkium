@@ -46,6 +46,88 @@ class SimplexNoise {
 }
 
 (function(){
+  // ===== Editable Quick Links =====
+  const LS_KEY = 'atb_start_links';
+  const defaultLinks = [
+    { name: 'GOOGLE', url: 'https://www.google.com' },
+    { name: 'YOUTUBE', url: 'https://www.youtube.com' },
+    { name: 'GITHUB', url: 'https://www.github.com' },
+    { name: 'REDDIT', url: 'https://www.reddit.com' },
+  ];
+  function loadLinks(){
+    try { const raw = localStorage.getItem(LS_KEY); const arr = raw ? JSON.parse(raw) : null; if (Array.isArray(arr)) return arr; } catch {}
+    return defaultLinks.slice();
+  }
+  function saveLinks(list){ try { localStorage.setItem(LS_KEY, JSON.stringify(list||[])); } catch {} }
+
+  const linksList = document.getElementById('links-list');
+  const editToggle = document.getElementById('links-edit-toggle');
+  const editor = document.getElementById('links-editor');
+  const inputName = document.getElementById('new-link-name');
+  const inputUrl = document.getElementById('new-link-url');
+  const addBtn = document.getElementById('add-link-btn');
+  let links = loadLinks();
+
+  function renderLinks(){
+    if (!linksList) return;
+    linksList.innerHTML = '';
+    links.forEach((ln, idx) => {
+      const a = document.createElement('a');
+      a.className = 'link-item';
+      a.href = ln.url;
+      a.textContent = ln.name || ln.url;
+      a.target = '_self';
+      // In edit mode, make name editable on click and show remove
+      a.addEventListener('click', (e) => {
+        if (!document.body.classList.contains('ql-editing')) return;
+        e.preventDefault();
+        const newName = prompt('LINK NAME', ln.name || '');
+        if (newName != null) ln.name = String(newName).trim().toUpperCase() || ln.name || '';
+        const newUrl = prompt('LINK URL', ln.url || '');
+        if (newUrl != null) ln.url = String(newUrl).trim();
+        saveLinks(links); renderLinks();
+      });
+      if (document.body.classList.contains('ql-editing')) {
+        const x = document.createElement('button');
+        x.className = 'link-remove';
+        x.type = 'button';
+        x.title = 'REMOVE';
+        x.textContent = 'X';
+        x.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          links.splice(idx, 1); saveLinks(links); renderLinks();
+        });
+        a.appendChild(x);
+      }
+      linksList.appendChild(a);
+    });
+  }
+
+  function setEditing(on){
+    document.body.classList.toggle('ql-editing', !!on);
+    if (editor) editor.hidden = !on;
+    renderLinks();
+  }
+
+  if (editToggle) {
+    editToggle.addEventListener('click', () => {
+      const on = !document.body.classList.contains('ql-editing');
+      setEditing(on);
+    });
+  }
+  addBtn?.addEventListener('click', () => {
+    const name = (inputName?.value || '').trim().toUpperCase();
+    let url = (inputUrl?.value || '').trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    links.push({ name: name || url, url });
+    saveLinks(links);
+    if (inputName) inputName.value = '';
+    if (inputUrl) inputUrl.value = '';
+    renderLinks();
+  });
+  renderLinks();
+
   function getVar(name){
     const cs = getComputedStyle(document.documentElement);
     return (cs.getPropertyValue(name) || '').trim();

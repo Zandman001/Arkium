@@ -496,6 +496,17 @@ input[type="checkbox"]:focus-visible { outline: 3px solid var(--fg); outline-off
   color: var(--fg);
   border-left: 3px solid var(--fg);
 }
+/* Sidebar resizer handle */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+}
+.sidebar-resizer:hover { background: rgba(255,255,255,0.06); }
 .notes-sidebar.open { display: flex; }
 .notes-header { height: 32px; display: flex; align-items: center; padding: 0 12px; border-bottom: 3px solid var(--fg); }
 .notes-tabs { height: 32px; display: flex; align-items: stretch; border-bottom: 3px solid var(--fg); }

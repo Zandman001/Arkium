@@ -346,15 +346,21 @@ document.addEventListener('DOMContentLoaded', () => {
   addTab('start:');
 });
 
-// Compact mode toggle
-compactToggle?.addEventListener('change', (e) => {
-  const on = !!compactToggle.checked;
-  document.body.classList.toggle('compact-mode', on);
-  try { localStorage.setItem('atb_compact_mode', on ? '1' : '0'); } catch {}
-  if (compactState) compactState.textContent = on ? 'ON' : 'OFF';
-  // Recompute metrics since tab bar moved/changed orientation
-  reportChromeMetrics();
-});
+// ===== Always focus website content (active BrowserView) =====
+// Aggressively redirect focus back to the webview to keep sites keyboard-active.
+function refocusWebviewSoon(){ try { ipcRenderer.send('focus-webview'); } catch {} }
+// Any click in the UI -> return focus to content right after
+document.addEventListener('mousedown', () => { setTimeout(refocusWebviewSoon, 0); }, true);
+document.addEventListener('mouseup', () => { setTimeout(refocusWebviewSoon, 0); }, true);
+// Any focus shift in UI -> defocus and return to content
+document.addEventListener('focusin', (e) => {
+  try { if (e.target && typeof e.target.blur === 'function') e.target.blur(); } catch {}
+  setTimeout(refocusWebviewSoon, 0);
+}, true);
+// When the window regains focus, push it to the webview as well
+window.addEventListener('focus', () => { setTimeout(refocusWebviewSoon, 0); });
+
+// Compact mode toggle removed from UI; logic kept for compatibility if key exists
 
 // Adaptive theme toggle
 adaptiveToggle?.addEventListener('change', () => {
@@ -1289,6 +1295,36 @@ function toggleMenu(force) {
   // Adjust BrowserView bounds to make room for the menu panel when open
   reportChromeMetrics();
 }
+
+// ===== Sidebar Resizers (Menu, GPT, Notes) =====
+function attachSidebarResizer(sidebarEl, storageKey){
+  if (!sidebarEl) return;
+  const handle = sidebarEl.querySelector('.sidebar-resizer');
+  if (!handle) return;
+  const minW = 260, maxW = 900;
+  const loadW = () => {
+    try { const w = parseInt(localStorage.getItem(storageKey)||'',10); if (!isNaN(w) && w>minW && w<maxW) sidebarEl.style.width = w + 'px'; } catch {}
+  };
+  loadW();
+  let dragging = false;
+  function onMove(e){
+    if (!dragging) return;
+    const mouseX = e.clientX;
+    const winW = window.innerWidth || document.documentElement.clientWidth;
+    let w = Math.max(minW, Math.min(maxW, Math.round(winW - mouseX)));
+    sidebarEl.style.width = w + 'px';
+    try { localStorage.setItem(storageKey, String(w)); } catch {}
+    reportChromeMetrics();
+  }
+  function onUp(){ dragging = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  handle.addEventListener('mousedown', (e) => { e.preventDefault(); dragging = true; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  attachSidebarResizer(menuPanel, 'atb_width_menu');
+  attachSidebarResizer(gptSidebar, 'atb_width_gpt');
+  attachSidebarResizer(notesSidebar, 'atb_width_notes');
+});
 
 async function updateKeyStatus() {
   try {
